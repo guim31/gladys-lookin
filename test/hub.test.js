@@ -436,6 +436,15 @@ test('air conditioner features offer only the speeds and swing LOOKin knows', as
   );
   const option = (key) =>
     ac.features.find((f) => f.external_id.endsWith(`:${key}`)).supported_options;
-  assert.deepEqual(option('fan-speed'), [0, 1, 3, 5]);
-  assert.deepEqual(option('swing'), [0, 1]);
+  // Objects with a label, as the core's Joi schema requires (bare numbers: 400).
+  assert.deepEqual(option('fan-speed'), [
+    { value: 0, label: 'Auto', sort_order: 0 },
+    { value: 1, label: 'Low', sort_order: 1 },
+    { value: 3, label: 'Medium', sort_order: 2 },
+    { value: 5, label: 'High', sort_order: 3 },
+  ]);
+  assert.deepEqual(
+    option('swing').map((entry) => entry.value),
+    [0, 1],
+  );
 });

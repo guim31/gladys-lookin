@@ -64,9 +64,15 @@ test('no answer, timeout, HTTP error and {"success":"false"} are LookinErrors', 
 
   const slow = new LookinClient({
     fetch: (url, { signal }) =>
-      new Promise((resolve, reject) =>
-        signal.addEventListener('abort', () => reject(signal.reason)),
-      ),
+      new Promise((resolve, reject) => {
+        // AbortSignal.timeout does not keep the event loop alive (Node 22):
+        // a hanging device does, until the abort.
+        const hang = setTimeout(resolve, 5000);
+        signal.addEventListener('abort', () => {
+          clearTimeout(hang);
+          reject(signal.reason);
+        });
+      }),
     timings: { timeoutMs: 20 },
   });
   await assert.rejects(slow.info('192.0.2.20'), (err) => err.unreachable === true);

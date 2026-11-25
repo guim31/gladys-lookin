@@ -93,6 +93,12 @@ export const NAMES = {
     'button-speed': 'Speed',
     'button-cursor': 'Cursor',
     'button-menu': 'Menu',
+    'option-auto': 'Auto',
+    'option-low': 'Low',
+    'option-medium': 'Medium',
+    'option-high': 'High',
+    'option-off': 'Off',
+    'option-on': 'On',
   },
   fr: {
     tv: 'TV',
@@ -121,6 +127,12 @@ export const NAMES = {
     'button-speed': 'Vitesse',
     'button-cursor': 'Curseur',
     'button-menu': 'Menu',
+    'option-auto': 'Auto',
+    'option-low': 'Basse',
+    'option-medium': 'Moyenne',
+    'option-high': 'Haute',
+    'option-off': 'Arrêt',
+    'option-on': 'Marche',
   },
   de: {
     tv: 'Fernseher',
@@ -149,6 +161,12 @@ export const NAMES = {
     'button-speed': 'Stufe',
     'button-cursor': 'Cursor',
     'button-menu': 'Menü',
+    'option-auto': 'Auto',
+    'option-low': 'Niedrig',
+    'option-medium': 'Mittel',
+    'option-high': 'Hoch',
+    'option-off': 'Aus',
+    'option-on': 'Ein',
   },
   es: {
     tv: 'TV',
@@ -177,6 +195,12 @@ export const NAMES = {
     'button-speed': 'Velocidad',
     'button-cursor': 'Cursor',
     'button-menu': 'Menú',
+    'option-auto': 'Auto',
+    'option-low': 'Baja',
+    'option-medium': 'Media',
+    'option-high': 'Alta',
+    'option-off': 'Apagado',
+    'option-on': 'Encendido',
   },
 };
 
@@ -210,6 +234,11 @@ export const hasPower = (remote) =>
   remote.type !== 'climate' && remote.functions.some((command) => POWER_COMMANDS.includes(command));
 
 const base = { read_only: false, has_feedback: false, keep_history: true };
+
+// The core wants `[{ value, label, sort_order }]` (Joi schema of
+// normalizeSupportedOptions): bare numbers make it refuse every device.
+const options = (names, entries) =>
+  entries.map(([value, key], index) => ({ value, label: names[key], sort_order: index }));
 
 /** Feature specs of the LOOKin itself (its sensor), or [] without one. */
 export function lookinFeatures(lookin, language) {
@@ -296,7 +325,12 @@ export function remoteFeatures(remote, language) {
         type: T.AIR_CONDITIONING.FAN_SPEED,
         min: 0,
         max: 5,
-        supported_options: [0, 1, 3, 5],
+        supported_options: options(names, [
+          [0, 'option-auto'],
+          [1, 'option-low'],
+          [3, 'option-medium'],
+          [5, 'option-high'],
+        ]),
         ...base,
       },
       {
@@ -306,7 +340,10 @@ export function remoteFeatures(remote, language) {
         type: T.AIR_CONDITIONING.SWING_VERTICAL,
         min: 0,
         max: 1,
-        supported_options: [0, 1],
+        supported_options: options(names, [
+          [0, 'option-off'],
+          [1, 'option-on'],
+        ]),
         ...base,
       },
     ];
