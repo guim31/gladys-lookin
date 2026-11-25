@@ -149,6 +149,9 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   du nom publié.
 - **Aucune commande d'appareil ne permet un choix multiple** : un `text/select` n'a qu'un choix
   actif.
+- **`supported_options`** (5.2+) : tableau d'objets `{ value, label, sort_order }` (schéma Joi
+  `normalizeSupportedOptions` du cœur), jamais de nombres nus : sinon **tout** `publishDiscoveredDevices` est
+  refusé en 400. Le faux Gladys du SDK ne le vérifie pas (relevé sur gladys-lookin).
 - Un changement de structure fait proposer « Mettre à jour » dans l'onglet Découverte
   (`structure_changed`). Un changement des seules `supported_options` ne le déclenche pas.
 - **Jauge** : l'aiguille se place par `(value - min) / (max - min)` des bornes de la
