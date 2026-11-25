@@ -1,0 +1,10 @@
+{
+  "Type": "03",
+  "Name": "Ceiling light",
+  "Updated": "1631862703",
+  "Status": "0000",
+  "Functions": [
+    { "Name": "poweron", "Type": "single" },
+    { "Name": "poweroff", "Type": "single" }
+  ]
+}

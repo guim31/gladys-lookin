@@ -30,6 +30,13 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+The integration talks to the LOOKin Remotes of the local network over plain
+HTTP (port 80, no authentication, as the LOOKin local API is) and asks the
+Gladys core for mDNS and UDP (port 61201) discovery scans. It stores no secret:
+`/data/lookin-state.json` only holds the id, IP address, name and model of the
+LOOKins seen. Anyone on the local network can drive a LOOKin the same way: keep
+it on a trusted network.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the LOOKin devices and app.

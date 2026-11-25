@@ -1,0 +1,11 @@
+{
+  "Type": "07",
+  "Name": "Fan",
+  "Updated": "1632129287",
+  "Status": "1000",
+  "Functions": [
+    { "Name": "power", "Type": "single" },
+    { "Name": "speed", "Type": "single" },
+    { "Name": "swing", "Type": "single" }
+  ]
+}

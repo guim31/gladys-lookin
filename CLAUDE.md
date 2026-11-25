@@ -31,16 +31,22 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only (registerHandlers + shutdown)
+src/app.js                        every SDK handler, wired to the hub (the tests use it too)
+src/hub.js                        LookinHub: discovery, polling, states, commands, /data
+src/devices.js                    LOOKin and remotes -> Gladys devices, names (4 languages), values
+src/lookin/protocol.js            LOOKin API: paths, parsers, AC state of 4 digits, IR codes, UDP
+src/lookin/client.js              HTTP client: one request at a time per LOOKin, no command retry
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget `remote` (manifest `widgets`)
+src/texts.js                      connection status, "Search" report, ActionFailure messages
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js, src/problems.js     /data/lookin-state.json; one log line per lasting failure
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
+test/                             node --test, against the SDK's fake Gladys and fake LOOKins
+test/fixtures/lookin/             LOOKin API answers (aiolookin tests), anonymized
+tools/fake-lookin.mjs             a simulated LOOKin on HTTP + UDP 61201 (development only)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -259,3 +265,38 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## LOOKin (gladys-lookin)
+
+**Protocole** (références : aiolookin, MIT, et l'intégration `lookin` de Home Assistant ; la page officielle
+`look-in.club/devices/api` ne répond plus depuis fin 2026, l'archive web non plus)
+
+- HTTP en clair, port 80, sans authentification. `/device` : `ID` (identifiant stable, hex), `Name`, `MRDC` (1ᵉʳ
+  octet = modèle, 2 = Remote2 avec capteur). `/sensors/meteo` : `Temperature`, `Humidity` en chaînes. `/data` :
+  `[{Type, UUID, Updated}]` ; `/data/{UUID}` : `Name`, `Status`, `LastStatus`, `Functions[].Name`.
+- Types : `01` TV, `02` média, `03` lumière, `04` humidificateur, `05` purificateur, `06` aspirateur, `07`
+  ventilateur, `EF` climatiseur. Boutons : `power 01`, `poweron 02`, `poweroff 03`, `mode 04`, `mute 05`,
+  `volup 06`, `voldown 07`, `chup 08`, `chdown 09`, `swing 0A`, `speed 0B`, `cursor 0C`, `menu 0D` ; appui =
+  `GET /commands/ir/localremote/{UUID}{code}FF`.
+- Climatiseur : état de 4 chiffres hex `mode|temp-16|ventilation|balayage` (mode 0 arrêt, 1 auto, 2 froid,
+  3 chaud, 4 déshumidification, 5 ventilation ; ventilation 0-3), envoyé par
+  `GET /commands/ir/localremote/{UUID}{état}`. À l'arrêt, `Status` peut valoir `0000` : réglages dans `LastStatus`.
+  Mode Gladys `AC_MODE` = mode LOOKin − 1.
+- Erreur : statut HTTP non 2xx, ou `{"success":"false","Message":…}`.
+- UDP 61201 : `LOOK.in:Alive!<ID>:…` (réponse à `LOOK.in:Discover!`) et `LOOK.in:Updated!<ID>:…` (changements,
+  **en broadcast** : n'atteint pas le conteneur). Format exact du reste du message non vérifié : seul l'ID est lu,
+  puis confirmé par `/device`.
+
+**Choix de conception**
+
+- Découverte : `mdns` (`_lookin._tcp`) puis `udp-active-broadcast` port 61201, adresses saisies et connues
+  (`/data`). On ne sait pas si la LOOKin répond au Discover en unicast (relayé par le cœur) ou en broadcast (perdu) :
+  mDNS couvre l'autre cas. Les deux scans se suivent (le cœur refuse deux scans simultanés en 409).
+- Sondage par minuteur interne (`should_poll: false`), 30 s par défaut : capteur, liste, puis chaque télécommande ;
+  une liste changée (`UUID:Updated`) republie les appareils. Une lecture partie avant une commande ne l'écrase pas
+  (`commandSeq`). Injoignable après 2 lectures sans réponse. Republication complète toutes les 6 h.
+- `has_feedback: false` partout (infrarouge à sens unique). Bouton unique d'alimentation : appuyé seulement si l'état
+  connu diffère. Choisir un mode allume le climatiseur ; les autres réglages d'un climatiseur arrêté sont envoyés avec
+  le mode 0 (trame « arrêt », gardée par la LOOKin pour le rallumage).
+- Pas de déclencheur de scène : il doublonnerait l'état des appareils, lu au même rythme.
+- Widget : 4 boutons au plus (budget du cœur : **4 boutons par widget**, en plus des 8 composants).

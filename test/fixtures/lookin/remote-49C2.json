@@ -1,0 +1,16 @@
+{
+  "Type": "01",
+  "Name": "Living room TV",
+  "Updated": "1630089608",
+  "Status": "1000",
+  "Functions": [
+    { "Name": "power", "Type": "single" },
+    { "Name": "mode", "Type": "toggle" },
+    { "Name": "mute", "Type": "single" },
+    { "Name": "volup", "Type": "single" },
+    { "Name": "voldown", "Type": "single" },
+    { "Name": "chup", "Type": "single" },
+    { "Name": "chdown", "Type": "single" },
+    { "Name": "menu", "Type": "single" }
+  ]
+}

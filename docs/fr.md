@@ -1,67 +1,124 @@
-# Template de démonstration
+# LOOKin
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Pilotez vos appareils infrarouges depuis Gladys avec une télécommande
+universelle [LOOKin Remote2](https://look-in.club), en réseau local : TV,
+lecteurs multimédias, lumières, ventilateurs, purificateurs et climatiseurs
+enregistrés dans l'application LOOKin, ainsi que la température et l'humidité
+de son capteur. Pas de compte, pas de cloud : Gladys parle directement à la
+LOOKin, sur votre Wi-Fi.
 
-## Ce que vous obtenez
+> **Développée sans le matériel : vos retours sont les bienvenus.** Cette
+> intégration a été construite et testée avec les réponses de l'API locale
+> LOOKin enregistrées par le projet aiolookin, et avec une LOOKin simulée, pas
+> avec une vraie. Si quelque chose ne fonctionne pas comme décrit, dites-le sur
+> le [forum Gladys](https://community.gladysassistant.com) ou dans les
+> [issues](https://github.com/guim31/gladys-lookin/issues).
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Ce qu'il faut
 
-## Configuration
+- Gladys Assistant 5.2.0 ou plus récent.
+- Une LOOKin Remote2 configurée dans l'**application LOOKin**, sur le même
+  réseau que Gladys.
+- Vos appareils enregistrés comme télécommandes dans l'application LOOKin
+  (c'est là que les codes infrarouges sont appris ou choisis).
+- Rien d'autre : ni compte, ni clé, ni accès à Internet.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+## Installation
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+1. Installez l'intégration depuis le catalogue de Gladys.
+2. Ouvrez sa **Configuration**. Rien n'est obligatoire ; les options sont :
+   - **Adresses IP des LOOKin Remote** : seulement si la découverte automatique
+     n'en trouve pas une (autre réseau, mDNS bloqué). Donnez-lui une adresse
+     fixe dans votre box.
+   - **Intervalle d'actualisation** : fréquence de lecture de chaque LOOKin (30
+     secondes par défaut).
+   - **Langue des noms des appareils** : noms des nouveaux appareils et
+     fonctionnalités.
+3. Ouvrez l'onglet **Découverte** : la LOOKin et chaque télécommande
+   enregistrée dans l'application LOOKin apparaissent. Ajoutez celles que vous
+   voulez.
+4. L'action **Rechercher les LOOKin Remote** de l'écran de configuration les
+   recherche à nouveau et liste ce qui est trouvé.
 
-## Actions
+## Les appareils dans Gladys
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+**La LOOKin elle-même** (Remote2) : **Température** et **Humidité** de son
+capteur.
+
+**Un appareil par télécommande** enregistrée dans l'application LOOKin, nommé
+comme dans l'application :
+
+| Télécommande                                                         | Fonctionnalités                                                                                                          |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| TV, Multimédia                                                       | **Marche/arrêt**, boutons poussoirs : **Volume +**, Volume -, Muet, Chaîne suivante, Chaîne précédente, **Source**, Menu |
+| Lumière, Ventilateur, Humidificateur, Purificateur d'air, Aspirateur | **Marche/arrêt**, et un bouton poussoir pour chaque autre bouton (Vitesse, Balayage, Mode…)                              |
+| Climatiseur (protocole « AC » de LOOKin)                             | **Marche/arrêt**, **Mode**, **Température de consigne** (16 à 30 °C), **Vitesse de ventilation**, **Balayage**           |
+
+Seuls les boutons que la télécommande a dans l'application LOOKin sont créés.
+
+- L'infrarouge est à sens unique : la LOOKin ne peut pas relire l'appareil.
+  L'état marche/arrêt est celui dont la LOOKin se souvient, d'après ses propres
+  commandes et les appuis de la télécommande d'origine qu'elle entend.
+- Avec des boutons « marche » et « arrêt » séparés, chacun est envoyé comme
+  demandé. Avec un seul bouton d'alimentation, il n'est appuyé que si l'état
+  connu de la LOOKin est différent.
+- Climatiseur : tout l'état est envoyé d'un coup, comme la télécommande
+  d'origine. Choisir un mode allume l'appareil ; la température, la ventilation
+  et le balayage d'un appareil arrêté sont gardés pour son rallumage, dans son
+  dernier mode.
+
+## Widget de tableau de bord
+
+Le widget **Télécommande LOOKin** place une télécommande sur le tableau de
+bord : son état, la température de la pièce mesurée par la LOOKin, et jusqu'à
+quatre boutons choisis dans ses réglages parmi ceux de la télécommande
+(marche/arrêt, volume, muet, chaîne, mode, menu, vitesse, balayage ; pour un
+climatiseur : marche/arrêt et consigne −1 / +1 °C).
 
 ## Scènes
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+### Action : appuyer sur un bouton
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+**Appuyer sur un bouton de télécommande LOOKin** envoie un bouton d'une
+télécommande enregistrée dans l'application LOOKin : marche/arrêt (bascule),
+marche, arrêt, mode ou source, muet, volume, chaîne, balayage, vitesse, curseur,
+menu. Utile pour les boutons sans fonctionnalité propre, ou pour enchaîner
+plusieurs appuis.
 
-## Tableau de bord
+### Action : envoyer un code IR
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+**Envoyer un code IR avec LOOKin** envoie un code brut (durées en
+microsecondes, `9000 -4500 560 -560 …`) ou un code Pronto HEX
+(`0000 006D 0022 0002 …`) par une LOOKin, pour un appareil sans télécommande
+enregistrée. Choisissez la LOOKin ou l'une de ses télécommandes.
+
+### Idées de scènes
+
+- Au coucher du soleil, éteindre le ventilateur et allumer la lumière.
+- Quand la température de la LOOKin dépasse 27 °C, passer le climatiseur en
+  froid à 24 °C.
+- En quittant la maison, éteindre la TV (bouton arrêt, ou la bascule).
+
+Une action qui échoue (LOOKin qui ne répond pas, bouton absent, code invalide)
+s'arrête avec un message en rouge.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Aucune LOOKin trouvée** : vérifiez qu'elle est sur le même réseau que
+  Gladys, puis saisissez son adresse IP dans la configuration. La découverte
+  automatique passe par la découverte réseau de Gladys 5.2 (mDNS et port UDP
+  61201).
+- **Une télécommande manque** : enregistrez-la d'abord dans l'application
+  LOOKin ; elle apparaît à l'actualisation suivante.
+- **L'état est faux** : l'appareil a été commandé avec une télécommande que la
+  LOOKin n'a pas entendue. Renvoyez l'état depuis Gladys.
+
+## Limites
+
+- La LOOKin annonce ses changements en diffusion UDP, qui n'atteint pas le
+  conteneur de l'intégration : ils sont lus à chaque intervalle
+  d'actualisation.
+- Pas d'apprentissage de nouveaux codes : apprenez-les ou choisissez-les dans
+  l'application LOOKin.
+- Températures du climatiseur en °C, de 16 à 30, comme le protocole LOOKin.
+- Sans lien avec LOOKin.
