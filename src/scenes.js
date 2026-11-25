@@ -13,11 +13,9 @@
 export const SCENE_ACTIONS = {
   async send_command(hub, { fields }) {
     await hub.sendCommand(fields.device, String(fields.command ?? ''));
-    return { sent: true };
   },
 
   async send_ir_code(hub, { fields }) {
     await hub.sendIr(fields.device, String(fields.format ?? ''), fields.code);
-    return { sent: true };
   },
 };
