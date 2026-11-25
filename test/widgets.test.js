@@ -1,77 +1,99 @@
+// -----------------------------------------------------------------------------
+// The `remote` widget: its content passes the SDK validator, offers only the
+// buttons the remote has, and its buttons drive the remote.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { WIDGET_KEY } from '../src/hub.js';
+import { UUIDS, createAll, createWorld, lookinId, remoteId } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function world(t, options) {
+  const w = await createWorld(options);
+  t.after(() => w.app.stop());
+  await createAll(w);
+  return w;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+async function content(w, settings, language = 'en') {
+  const ack = await w.fake.widgetGet(WIDGET_KEY, { settings, language, units: 'metric' });
+  assert.equal(ack.success, true, JSON.stringify(ack.error));
+  const { content: data } = ack.data;
+  assert.deepEqual(validateWidgetContent(data), []);
+  assert.ok(data.components.length <= 8);
+  assert.ok(data.components.filter((c) => c.type === 'text').length <= 2);
+  return data;
+}
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
+const labels = (data) => data.components.filter((c) => c.type === 'button').map((c) => c.label);
 
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('a TV: its state, the room temperature and the default buttons it has', async (t) => {
+  const w = await world(t);
+  const data = await content(w, { device: remoteId(w.gladys, UUIDS.TV) });
+  assert.equal(data.components[0].text, 'Living room TV · LOOKin living_room');
+  const status = data.components.find((c) => c.type === 'status');
+  assert.deepEqual(
+    status.items.map((item) => item.value),
+    ['On', '24.6 °C'],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+  assert.deepEqual(labels(data), ['Turn off', 'Volume up', 'Volume down', 'Mute']);
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
+test('the buttons follow the settings and the remote; the name is the one given in Gladys', async (t) => {
+  const w = await world(t);
+  const fanId = remoteId(w.gladys, UUIDS.FAN);
+  await w.fake.deviceUpdated({
+    ...w.fake.devices.find((d) => d.external_id === fanId),
+    name: 'Bedroom fan',
+  });
+  const data = await content(w, { device: fanId, buttons: ['speed', 'swing', 'volup'] }, 'fr');
+  assert.deepEqual(labels(data), ['Vitesse', 'Balayage']);
+  assert.match(data.components[0].text, /^Bedroom fan/);
 });
 
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('an air conditioner: mode and setpoint, on/off and ±1 °C', async (t) => {
+  const w = await world(t);
+  const settings = { device: remoteId(w.gladys, UUIDS.CLIMATE) };
+  const data = await content(w, settings, 'fr');
+  const status = data.components.find((c) => c.type === 'status');
+  assert.deepEqual(
+    status.items.map((item) => item.value),
+    ['Chaud', '23 °C', '24.6 °C'],
   );
+  assert.deepEqual(labels(data), ['Éteindre', '−1 °C', '+1 °C']);
+
+  const [lookin] = w.network.lookins;
+  const up = await w.fake.widgetAction(WIDGET_KEY, 'temp_up', {}, { settings });
+  assert.equal(up.success, true);
+  assert.equal(lookin.sent.at(-1).status, '3801');
+  const off = await w.fake.widgetAction(WIDGET_KEY, 'power', {}, { settings });
+  assert.equal(off.success, true);
+  assert.equal(off.data.message.fr, 'Éteint');
+  assert.equal(lookin.sent.at(-1).status, '0801');
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('a widget button presses the remote button and says so', async (t) => {
+  const w = await world(t);
+  const settings = { device: remoteId(w.gladys, UUIDS.TV) };
+  const ack = await w.fake.widgetAction(WIDGET_KEY, 'volup', {}, { settings });
+  assert.equal(ack.success, true);
+  assert.equal(ack.data.message.de, 'Gesendet: Lauter');
+  assert.deepEqual(w.network.lookins[0].sent, [{ uuid: UUIDS.TV, command: 'volup' }]);
+
+  const missing = await w.fake.widgetAction(WIDGET_KEY, 'speed', {}, { settings });
+  assert.equal(missing.success, false);
+  assert.match(missing.error.fr, /n'a pas ce bouton/);
+});
+
+test('messages: no device chosen, unknown device, the LOOKin itself', async (t) => {
+  const w = await world(t);
+  for (const [settings, text] of [
+    [{}, /Choose a LOOKin remote/],
+    [{ device: remoteId(w.gladys, 'FFFF') }, /not known yet/],
+    [{ device: lookinId(w.gladys) }, /not the LOOKin itself/],
+  ]) {
+    const data = await content(w, settings);
+    assert.match(data.components[0].text, text);
+  }
 });

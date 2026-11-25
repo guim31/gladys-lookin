@@ -1,0 +1,16 @@
+{
+  "Type": "Remote",
+  "MRDC": "02000105001K17E3",
+  "Status": "Running",
+  "ID": "98F3A1B2",
+  "Name": "living_room",
+  "Time": "1634495587",
+  "Timezone": "+1",
+  "PowerMode": "5v",
+  "CurrentVoltage": "5889",
+  "Firmware": "2.38",
+  "Temperature": "57",
+  "HomeKit": "1",
+  "EcoMode": "off",
+  "SensorMode": "0"
+}

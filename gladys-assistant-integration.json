@@ -1,177 +1,632 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "LOOKin",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "LOOKin Remote2 IR remotes on the local network: TV, air conditioner, fan, temperature.",
+    "fr": "Télécommandes IR LOOKin Remote2 en réseau local : TV, climatiseur, ventilateur, température.",
+    "de": "LOOKin Remote2 IR-Fernbedienungen im lokalen Netzwerk: TV, Klimaanlage, Ventilator, Temperatur.",
+    "es": "Mandos IR LOOKin Remote2 en la red local: TV, aire acondicionado, ventilador, temperatura."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
-  "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "docker_image": "ghcr.io/guim31/gladys-lookin:1.0.0",
+  "gladys_version": ">=5.2.0",
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-lookin/main/cover.png",
+  "categories": ["multimedia", "climate", "appliances"],
+  "transports": ["local"],
+  "network_discovery": [
+    {
+      "type": "mdns",
+      "service": "_lookin._tcp"
+    },
+    {
+      "type": "udp-active-broadcast",
+      "ports": [61201]
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Finding your LOOKin Remote",
+        "fr": "Trouver votre LOOKin Remote",
+        "de": "Deine LOOKin Remote finden",
+        "es": "Encontrar su LOOKin Remote"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "LOOKin Remotes on the same network as Gladys are found automatically, with the remotes saved in the LOOKin app: open the Discovery tab. If one is missing, enter its IP address below.",
+        "fr": "Les LOOKin Remote du même réseau que Gladys sont trouvées automatiquement, avec les télécommandes enregistrées dans l'application LOOKin : ouvrez l'onglet Découverte. S'il en manque une, saisissez son adresse IP ci-dessous.",
+        "de": "LOOKin Remotes im selben Netzwerk wie Gladys werden automatisch gefunden, mit den in der LOOKin-App gespeicherten Fernbedienungen: Öffne den Tab „Entdecken“. Fehlt eine, gib unten ihre IP-Adresse ein.",
+        "es": "Las LOOKin Remote de la misma red que Gladys se encuentran automáticamente, con los mandos guardados en la aplicación LOOKin: abra la pestaña Descubrir. Si falta alguna, introduzca su dirección IP a continuación."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-lookin/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "hosts",
+      "type": "string",
+      "label": {
+        "en": "IP addresses of the LOOKin Remotes",
+        "fr": "Adresses IP des LOOKin Remote",
+        "de": "IP-Adressen der LOOKin Remotes",
+        "es": "Direcciones IP de las LOOKin Remote"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "Optional, separated by commas. Only needed for the LOOKin Remotes automatic discovery does not find.",
+        "fr": "Facultatif, séparées par des virgules. Seulement pour les LOOKin Remote que la découverte automatique ne trouve pas.",
+        "de": "Optional, durch Kommas getrennt. Nur für LOOKin Remotes nötig, die die automatische Erkennung nicht findet.",
+        "es": "Opcional, separadas por comas. Solo para las LOOKin Remote que el descubrimiento automático no encuentra."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "placeholder": {
+        "en": "e.g. 192.168.1.50",
+        "fr": "ex. 192.168.1.50",
+        "de": "z. B. 192.168.1.50",
+        "es": "p. ej. 192.168.1.50"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle d'actualisation",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often each LOOKin is read: temperature, humidity, and the states changed with the original remotes.",
+        "fr": "Fréquence de lecture de chaque LOOKin : température, humidité, et états changés avec les télécommandes d'origine.",
+        "de": "Wie oft jede LOOKin gelesen wird: Temperatur, Luftfeuchtigkeit und mit den Originalfernbedienungen geänderte Zustände.",
+        "es": "Frecuencia de lectura de cada LOOKin: temperatura, humedad y estados cambiados con los mandos originales."
+      },
+      "required": false,
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "15",
+          "label": {
+            "en": "15 seconds",
+            "fr": "15 secondes",
+            "de": "15 Sekunden",
+            "es": "15 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the device names",
+        "fr": "Langue des noms des appareils",
+        "de": "Sprache der Gerätenamen",
+        "es": "Idioma de los nombres de los dispositivos"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Names given to new devices and their features (Temperature, Volume up, Fan speed...).",
+        "fr": "Noms donnés aux nouveaux appareils et à leurs fonctionnalités (Température, Volume +, Vitesse de ventilation…).",
+        "de": "Namen, die neuen Geräten und ihren Funktionen gegeben werden (Temperatur, Lauter, Lüfterstufe…).",
+        "es": "Nombres dados a los nuevos dispositivos y a sus funciones (Temperatura, Subir volumen, Velocidad del ventilador…)."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
-    }
-  ],
-  "scene_triggers": [
-    {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+      "key": "search",
+      "label": {
+        "en": "Search for LOOKin Remotes",
+        "fr": "Rechercher les LOOKin Remote",
+        "de": "LOOKin Remotes suchen",
+        "es": "Buscar LOOKin Remote"
       },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
+      "description": {
+        "en": "Looks for LOOKin Remotes and their remotes again and reports what was found.",
+        "fr": "Recherche à nouveau les LOOKin Remote et leurs télécommandes, et liste ce qui est trouvé.",
+        "de": "Sucht erneut nach LOOKin Remotes und ihren Fernbedienungen und listet die gefundenen auf.",
+        "es": "Busca de nuevo las LOOKin Remote y sus mandos e indica lo encontrado."
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "send_command",
+      "label": {
+        "en": "Press a LOOKin remote button",
+        "fr": "Appuyer sur un bouton de télécommande LOOKin",
+        "de": "Taste einer LOOKin-Fernbedienung drücken",
+        "es": "Pulsar un botón de un mando LOOKin"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Sends one button of a remote saved in the LOOKin app (TV, fan, light...), as the original remote would.",
+        "fr": "Envoie un bouton d'une télécommande enregistrée dans l'application LOOKin (TV, ventilateur, lumière…), comme la télécommande d'origine.",
+        "de": "Sendet eine Taste einer in der LOOKin-App gespeicherten Fernbedienung (TV, Ventilator, Licht…), wie die Originalfernbedienung.",
+        "es": "Envía un botón de un mando guardado en la aplicación LOOKin (TV, ventilador, luz…), como el mando original."
+      },
+      "timeout_seconds": 20,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Remote",
+            "fr": "Télécommande",
+            "de": "Fernbedienung",
+            "es": "Mando"
+          },
           "required": true
-        }
-      ],
-      "outputs": [
+        },
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "command",
+          "type": "select",
+          "label": {
+            "en": "Button",
+            "fr": "Bouton",
+            "de": "Taste",
+            "es": "Botón"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "power",
+              "label": {
+                "en": "Power (toggle)",
+                "fr": "Marche/arrêt (bascule)",
+                "de": "Ein/Aus (Umschalten)",
+                "es": "Encendido/apagado (alternar)"
+              }
+            },
+            {
+              "value": "poweron",
+              "label": {
+                "en": "Power on",
+                "fr": "Marche",
+                "de": "Ein",
+                "es": "Encender"
+              }
+            },
+            {
+              "value": "poweroff",
+              "label": {
+                "en": "Power off",
+                "fr": "Arrêt",
+                "de": "Aus",
+                "es": "Apagar"
+              }
+            },
+            {
+              "value": "mode",
+              "label": {
+                "en": "Mode or source",
+                "fr": "Mode ou source",
+                "de": "Modus oder Quelle",
+                "es": "Modo o fuente"
+              }
+            },
+            {
+              "value": "mute",
+              "label": {
+                "en": "Mute",
+                "fr": "Muet",
+                "de": "Stumm",
+                "es": "Silencio"
+              }
+            },
+            {
+              "value": "volup",
+              "label": {
+                "en": "Volume up",
+                "fr": "Volume +",
+                "de": "Lauter",
+                "es": "Subir volumen"
+              }
+            },
+            {
+              "value": "voldown",
+              "label": {
+                "en": "Volume down",
+                "fr": "Volume -",
+                "de": "Leiser",
+                "es": "Bajar volumen"
+              }
+            },
+            {
+              "value": "chup",
+              "label": {
+                "en": "Channel up",
+                "fr": "Chaîne suivante",
+                "de": "Nächster Sender",
+                "es": "Canal siguiente"
+              }
+            },
+            {
+              "value": "chdown",
+              "label": {
+                "en": "Channel down",
+                "fr": "Chaîne précédente",
+                "de": "Vorheriger Sender",
+                "es": "Canal anterior"
+              }
+            },
+            {
+              "value": "swing",
+              "label": {
+                "en": "Swing",
+                "fr": "Balayage",
+                "de": "Schwenken",
+                "es": "Oscilación"
+              }
+            },
+            {
+              "value": "speed",
+              "label": {
+                "en": "Speed",
+                "fr": "Vitesse",
+                "de": "Stufe",
+                "es": "Velocidad"
+              }
+            },
+            {
+              "value": "cursor",
+              "label": {
+                "en": "Cursor",
+                "fr": "Curseur",
+                "de": "Cursor",
+                "es": "Cursor"
+              }
+            },
+            {
+              "value": "menu",
+              "label": {
+                "en": "Menu",
+                "fr": "Menu",
+                "de": "Menü",
+                "es": "Menú"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "send_ir_code",
+      "label": {
+        "en": "Send an IR code with LOOKin",
+        "fr": "Envoyer un code IR avec LOOKin",
+        "de": "IR-Code mit LOOKin senden",
+        "es": "Enviar un código IR con LOOKin"
+      },
+      "description": {
+        "en": "Sends a raw or Pronto HEX infrared code through a LOOKin Remote, for an appliance without a saved remote.",
+        "fr": "Envoie un code infrarouge brut ou Pronto HEX par une LOOKin Remote, pour un appareil sans télécommande enregistrée.",
+        "de": "Sendet einen rohen oder Pronto-HEX-Infrarotcode über eine LOOKin Remote, für ein Gerät ohne gespeicherte Fernbedienung.",
+        "es": "Envía un código infrarrojo en bruto o Pronto HEX a través de una LOOKin Remote, para un aparato sin mando guardado."
+      },
+      "timeout_seconds": 20,
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "LOOKin device",
+            "fr": "Appareil LOOKin",
+            "de": "LOOKin-Gerät",
+            "es": "Dispositivo LOOKin"
+          },
+          "required": true,
+          "description": {
+            "en": "The LOOKin itself, or any of its remotes.",
+            "fr": "La LOOKin elle-même, ou l'une de ses télécommandes.",
+            "de": "Die LOOKin selbst oder eine ihrer Fernbedienungen.",
+            "es": "La propia LOOKin o uno de sus mandos."
+          }
+        },
+        {
+          "key": "format",
+          "type": "select",
+          "label": {
+            "en": "Code format",
+            "fr": "Format du code",
+            "de": "Code-Format",
+            "es": "Formato del código"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "raw",
+              "label": {
+                "en": "Raw (durations in µs)",
+                "fr": "Brut (durées en µs)",
+                "de": "Roh (Dauer in µs)",
+                "es": "En bruto (duraciones en µs)"
+              }
+            },
+            {
+              "value": "prontohex",
+              "label": {
+                "en": "Pronto HEX",
+                "fr": "Pronto HEX",
+                "de": "Pronto HEX",
+                "es": "Pronto HEX"
+              }
+            }
+          ]
+        },
+        {
+          "key": "code",
+          "type": "string",
+          "label": {
+            "en": "IR code",
+            "fr": "Code IR",
+            "de": "IR-Code",
+            "es": "Código IR"
+          },
+          "required": true,
+          "description": {
+            "en": "Raw: signed durations separated by spaces. Pronto HEX: groups of four hex digits.",
+            "fr": "Brut : durées signées séparées par des espaces. Pronto HEX : groupes de quatre chiffres hexadécimaux.",
+            "de": "Roh: Dauern mit Vorzeichen, durch Leerzeichen getrennt. Pronto HEX: Gruppen aus vier Hex-Ziffern.",
+            "es": "En bruto: duraciones con signo separadas por espacios. Pronto HEX: grupos de cuatro dígitos hexadecimales."
+          },
+          "placeholder": {
+            "en": "e.g. 9000 -4500 560 -560",
+            "fr": "ex. 9000 -4500 560 -560",
+            "de": "z. B. 9000 -4500 560 -560",
+            "es": "p. ej. 9000 -4500 560 -560"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "remote",
+      "label": {
+        "en": "LOOKin remote",
+        "fr": "Télécommande LOOKin",
+        "de": "LOOKin-Fernbedienung",
+        "es": "Mando LOOKin"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "The buttons of a LOOKin remote on the dashboard, with its state and the room temperature.",
+        "fr": "Les boutons d'une télécommande LOOKin sur le tableau de bord, avec son état et la température.",
+        "de": "Die Tasten einer LOOKin-Fernbedienung auf dem Dashboard, mit Zustand und Raumtemperatur.",
+        "es": "Los botones de un mando LOOKin en el panel, con su estado y la temperatura de la estancia."
+      },
+      "icon": "radio",
+      "action_timeout_seconds": 20,
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Remote",
+            "fr": "Télécommande",
+            "de": "Fernbedienung",
+            "es": "Mando"
+          },
+          "required": true
+        },
+        {
+          "key": "buttons",
+          "type": "multi_select",
+          "label": {
+            "en": "Buttons",
+            "fr": "Boutons",
+            "de": "Tasten",
+            "es": "Botones"
+          },
+          "description": {
+            "en": "Up to four, among those the remote has. An air conditioner offers on/off and the setpoint.",
+            "fr": "Jusqu'à quatre, parmi ceux de la télécommande. Un climatiseur propose marche/arrêt et la consigne.",
+            "de": "Bis zu vier, unter denen der Fernbedienung. Eine Klimaanlage bietet Ein/Aus und den Sollwert.",
+            "es": "Hasta cuatro, entre los del mando. Un aire acondicionado ofrece encendido y la consigna."
+          },
+          "required": false,
+          "default": ["power", "volup", "voldown", "mute", "temp_down", "temp_up"],
+          "options": [
+            {
+              "value": "power",
+              "label": {
+                "en": "On/off",
+                "fr": "Marche/arrêt",
+                "de": "Ein/Aus",
+                "es": "Encendido/apagado"
+              }
+            },
+            {
+              "value": "volup",
+              "label": {
+                "en": "Volume up",
+                "fr": "Volume +",
+                "de": "Lauter",
+                "es": "Subir volumen"
+              }
+            },
+            {
+              "value": "voldown",
+              "label": {
+                "en": "Volume down",
+                "fr": "Volume -",
+                "de": "Leiser",
+                "es": "Bajar volumen"
+              }
+            },
+            {
+              "value": "mute",
+              "label": {
+                "en": "Mute",
+                "fr": "Muet",
+                "de": "Stumm",
+                "es": "Silencio"
+              }
+            },
+            {
+              "value": "chup",
+              "label": {
+                "en": "Channel up",
+                "fr": "Chaîne suivante",
+                "de": "Nächster Sender",
+                "es": "Canal siguiente"
+              }
+            },
+            {
+              "value": "chdown",
+              "label": {
+                "en": "Channel down",
+                "fr": "Chaîne précédente",
+                "de": "Vorheriger Sender",
+                "es": "Canal anterior"
+              }
+            },
+            {
+              "value": "mode",
+              "label": {
+                "en": "Mode or source",
+                "fr": "Mode ou source",
+                "de": "Modus oder Quelle",
+                "es": "Modo o fuente"
+              }
+            },
+            {
+              "value": "menu",
+              "label": {
+                "en": "Menu",
+                "fr": "Menu",
+                "de": "Menü",
+                "es": "Menú"
+              }
+            },
+            {
+              "value": "speed",
+              "label": {
+                "en": "Speed",
+                "fr": "Vitesse",
+                "de": "Stufe",
+                "es": "Velocidad"
+              }
+            },
+            {
+              "value": "swing",
+              "label": {
+                "en": "Swing",
+                "fr": "Balayage",
+                "de": "Schwenken",
+                "es": "Oscilación"
+              }
+            },
+            {
+              "value": "temp_down",
+              "label": {
+                "en": "Setpoint -1 °C",
+                "fr": "Consigne -1 °C",
+                "de": "Sollwert -1 °C",
+                "es": "Consigna -1 °C"
+              }
+            },
+            {
+              "value": "temp_up",
+              "label": {
+                "en": "Setpoint +1 °C",
+                "fr": "Consigne +1 °C",
+                "de": "Sollwert +1 °C",
+                "es": "Consigna +1 °C"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

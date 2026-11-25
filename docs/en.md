@@ -1,61 +1,114 @@
-# Demo Devices Template
+# LOOKin
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Control your infrared appliances from Gladys through a
+[LOOKin Remote2](https://look-in.club) universal remote, over your local
+network: TV, media players, lights, fans, purifiers and air conditioners saved
+in the LOOKin app, plus the temperature and humidity of its sensor. No account
+and no cloud: Gladys talks to the LOOKin directly, on your Wi-Fi.
 
-## What you get
+> **Developed without the hardware: feedback welcome.** This integration was
+> built and tested against the answers of the LOOKin local API recorded by the
+> aiolookin project, and against a simulated LOOKin, not against a real one. If
+> something does not work as described, please say so on the
+> [Gladys forum](https://community.gladysassistant.com) or in the
+> [issues](https://github.com/guim31/gladys-lookin/issues).
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## What you need
 
-## Configuration
+- Gladys Assistant 5.2.0 or later.
+- A LOOKin Remote2 set up in the **LOOKin app**, on the same network as Gladys.
+- Your appliances saved as remotes in the LOOKin app (that is where the
+  infrared codes are learned or chosen).
+- Nothing else: no account, no key, no internet access.
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+## Set up
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+1. Install the integration from the Gladys catalog.
+2. Open its **Configuration**. Nothing is required; the options are:
+   - **IP addresses of the LOOKin Remotes**: only if automatic discovery does
+     not find one (another network, mDNS blocked). Give it a fixed address in
+     your router.
+   - **Refresh interval**: how often each LOOKin is read (30 seconds by
+     default).
+   - **Language of the device names**: names of the new devices and features.
+3. Open the **Discovery** tab: the LOOKin and every remote saved in the LOOKin
+   app appear. Add the ones you want.
+4. The **Search for LOOKin Remotes** action of the configuration screen looks
+   for them again and lists what was found.
 
-## Actions
+## The Gladys devices
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+**The LOOKin itself** (Remote2): **Temperature** and **Humidity** of its
+sensor.
+
+**One device per remote** saved in the LOOKin app, named as in the app:
+
+| Remote                                       | Features                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| TV, Media                                    | **On/off**, push buttons: **Volume up**, Volume down, Mute, Channel up, Channel down, **Source**, Menu |
+| Light, Fan, Humidifier, Air purifier, Vacuum | **On/off**, and a push button for each other button (Speed, Swing, Mode…)                              |
+| Air conditioner (LOOKin "AC" protocol)       | **On/off**, **Mode**, **Target temperature** (16 to 30 °C), **Fan speed**, **Swing**                   |
+
+Only the buttons the remote has in the LOOKin app are created.
+
+- Infrared is one-way: the LOOKin cannot read the appliance back. The on/off
+  state is the one the LOOKin remembers, from its own commands and from the
+  presses of the original remote it hears.
+- With separate "on" and "off" buttons, each is sent as asked. With a single
+  power button, it is pressed only when the state the LOOKin knows differs.
+- Air conditioner: the whole state is sent at once, like the original remote.
+  Choosing a mode switches the unit on; the temperature, fan and swing of a
+  stopped unit are kept for when it is switched on, in its last mode.
+
+## Dashboard widget
+
+The **LOOKin remote** widget puts a remote on the dashboard: its state, the
+room temperature of the LOOKin, and up to four buttons chosen in its settings
+among those the remote has (on/off, volume, mute, channel, mode, menu, speed,
+swing; for an air conditioner: on/off and setpoint −1 / +1 °C).
 
 ## Scenes
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+### Action: press a button
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+**Press a LOOKin remote button** sends one button of a remote saved in the
+LOOKin app: power (toggle), power on, power off, mode or source, mute, volume,
+channel, swing, speed, cursor, menu. Use it for the buttons that have no
+feature of their own, or to chain several presses.
 
-## Dashboard
+### Action: send an IR code
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+**Send an IR code with LOOKin** sends a raw code (durations in microseconds,
+`9000 -4500 560 -560 …`) or a Pronto HEX code (`0000 006D 0022 0002 …`)
+through a LOOKin, for an appliance without a saved remote. Choose the LOOKin
+or any of its remotes.
+
+### Scene ideas
+
+- At sunset, switch the fan off and the light on.
+- When the temperature of the LOOKin goes above 27 °C, set the air conditioner
+  to cooling at 24 °C.
+- When you leave home, switch the TV off (power off button, or the toggle).
+
+A failed action (LOOKin not answering, button missing, invalid code) stops with
+a message in red.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **No LOOKin found**: check that it is on the same network as Gladys, then
+  enter its IP address in the configuration. Automatic discovery uses the
+  network discovery of Gladys 5.2 (mDNS and UDP port 61201).
+- **A remote is missing**: save it in the LOOKin app first; it appears at the
+  next refresh.
+- **The state is wrong**: the appliance was switched with a remote the LOOKin
+  did not hear. With separate on and off buttons, send the state again from
+  Gladys; with a single power button, press the appliance's own button out of
+  the LOOKin's sight, so both agree again.
+
+## Limits
+
+- The LOOKin announces its changes by UDP broadcast, which does not reach the
+  integration's container: they are read every refresh interval instead.
+- No learning of new codes: learn or choose them in the LOOKin app.
+- Air conditioner temperatures in °C, from 16 to 30, as the LOOKin protocol.
+- Not affiliated with LOOKin.
