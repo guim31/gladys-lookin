@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-25
+
 ### Added
 
 - LOOKin Remote2 universal infrared remotes on the local network, found
@@ -28,4 +30,5 @@ the notes of the version's GitHub Release.
   up to four buttons.
 - English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-lookin/commits/main
+[Unreleased]: https://github.com/guim31/gladys-lookin/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-lookin/releases/tag/v1.0.0
