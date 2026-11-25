@@ -113,6 +113,8 @@ test('air conditioner: decode the state, the last settings when off', () => {
     swing: 0,
     lastMode: 2,
   });
+  // "0000" with nothing else: no settings, not 16 °C.
+  assert.equal(decodeClimate('0000', null).temperature, 24);
   // Nothing known: auto, 24 °C.
   assert.deepEqual(decodeClimate(null, null), {
     mode: 0,

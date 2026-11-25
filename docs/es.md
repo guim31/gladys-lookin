@@ -107,7 +107,9 @@ se detiene con un mensaje en rojo.
 - **Falta un mando**: guárdelo primero en la aplicación LOOKin; aparece en la
   siguiente actualización.
 - **El estado es incorrecto**: el aparato se accionó con un mando que la LOOKin
-  no oyó. Envíe de nuevo el estado desde Gladys.
+  no oyó. Con botones de encender y apagar separados, envíe de nuevo el estado
+  desde Gladys; con un solo botón de encendido, accione el aparato fuera del
+  alcance de la LOOKin para que ambos coincidan.
 
 ## Límites
 

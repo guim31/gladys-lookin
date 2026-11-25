@@ -296,6 +296,7 @@ export function remoteFeatures(remote, language) {
         type: T.AIR_CONDITIONING.FAN_SPEED,
         min: 0,
         max: 5,
+        supported_options: [0, 1, 3, 5],
         ...base,
       },
       {
@@ -305,6 +306,7 @@ export function remoteFeatures(remote, language) {
         type: T.AIR_CONDITIONING.SWING_VERTICAL,
         min: 0,
         max: 1,
+        supported_options: [0, 1],
         ...base,
       },
     ];
@@ -357,7 +359,7 @@ export function buildLookinDevice(gladys, lookin, language) {
     model: 'LOOKin Remote2',
     // Read by the integration's own timer, at the configured pace.
     should_poll: false,
-    params: [{ name: 'IP_ADDRESS', value: lookin.host }],
+    params: lookin.host ? [{ name: 'IP_ADDRESS', value: lookin.host }] : [],
     features: toFeatures(ids, specs),
   };
 }
@@ -375,7 +377,7 @@ export function buildRemoteDevice(gladys, lookin, remote, language) {
     model: `LOOKin ${namesFor('en')[remote.type]}`,
     should_poll: false,
     params: [
-      { name: 'IP_ADDRESS', value: lookin.host },
+      ...(lookin.host ? [{ name: 'IP_ADDRESS', value: lookin.host }] : []),
       { name: 'LOOKIN_ID', value: lookin.id },
       { name: 'REMOTE_UUID', value: remote.uuid },
     ],

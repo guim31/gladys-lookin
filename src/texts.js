@@ -90,6 +90,12 @@ export const FAILURE = {
     de: 'Die LOOKin Remote hat den Befehl abgelehnt.',
     es: 'La LOOKin Remote ha rechazado el comando.',
   },
+  failed: {
+    en: 'The command failed, check the integration logs.',
+    fr: "La commande a échoué, consultez les logs de l'intégration.",
+    de: 'Der Befehl ist fehlgeschlagen, sieh dir die Protokolle der Integration an.',
+    es: 'El comando ha fallado, consulte los registros de la integración.',
+  },
   nothingFound: {
     en: 'No LOOKin Remote found. Enter its IP address in the configuration.',
     fr: 'Aucune LOOKin Remote trouvée. Saisissez son adresse IP dans la configuration.',

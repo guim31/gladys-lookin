@@ -15,6 +15,7 @@ import { WIDGET_COLORS } from '@gladysassistant/integration-sdk';
 import { hasPower, namesFor, toGladysMode } from './devices.js';
 import { WIDGET_KEY } from './hub.js';
 import { CLIMATE_MODES, decodeClimate, powerOf } from './lookin/protocol.js';
+import { ActionFailure, FAILURE } from './texts.js';
 
 // The core keeps four buttons per widget.
 const MAX_BUTTONS = 4;
@@ -212,7 +213,7 @@ async function get(hub, { settings, language = 'en' }) {
 
 async function action(hub, { actionKey, settings }) {
   if (!WIDGET_BUTTONS.includes(actionKey)) {
-    throw new Error(`Unknown action ${actionKey}`);
+    throw new ActionFailure(FAILURE.noButton);
   }
   const { remote } = await hub.widgetCommand(settings?.device, actionKey);
   const on =

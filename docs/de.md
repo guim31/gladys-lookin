@@ -111,8 +111,10 @@ Code) bricht mit einer roten Meldung ab.
 - **Eine Fernbedienung fehlt**: Speichere sie zuerst in der LOOKin-App; sie
   erscheint bei der nächsten Aktualisierung.
 - **Der Zustand ist falsch**: Das Gerät wurde mit einer Fernbedienung
-  geschaltet, die die LOOKin nicht gehört hat. Sende den Zustand erneut aus
-  Gladys.
+  geschaltet, die die LOOKin nicht gehört hat. Mit getrennten Ein- und
+  Aus-Tasten sende den Zustand erneut aus Gladys; mit nur einer Ein/Aus-Taste
+  schalte das Gerät außer Reichweite der LOOKin, damit beide wieder
+  übereinstimmen.
 
 ## Grenzen
 

@@ -96,3 +96,8 @@ test('a command is sent once, even when it fails', async () => {
   await assert.rejects(client.press('192.0.2.20', '49C2', 'volup'));
   assert.equal(calls, 1);
 });
+
+test('a list of remotes that is not a list is an error, not "no remote"', async () => {
+  const client = new LookinClient({ fetch: async () => new Response('', { status: 200 }) });
+  await assert.rejects(client.remotes('192.0.2.20'), /unreadable list/);
+});

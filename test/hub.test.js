@@ -342,3 +342,100 @@ test('changing the language renames the devices of the Discovery list', async (t
     ['Marche/arrêt', 'Vitesse', 'Balayage'],
   );
 });
+
+test('Gladys refusing the first publication does not stop the readings', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const w = await world(t, { connect: false, timers: true });
+  const publish = t.mock.method(w.gladys, 'publishDiscoveredDevices', async () => {
+    throw new GladysApiError(429, 'TOO_MANY_REQUESTS', 'Too many');
+  });
+  await w.gladys.connect();
+  await w.app.ready;
+  assert.equal(w.hub.timers.length, 3, 'the timers run anyway');
+  publish.mock.restore();
+  t.mock.timers.tick(30_000);
+  await w.hub.idle();
+  assert.equal(w.network.lookins[0].requests.filter((path) => path === '/data').length, 2);
+});
+
+test('another LOOKin taking the address (DHCP) is never read nor driven as the first one', async (t) => {
+  const first = new FakeLookin();
+  const w = await createdWorld(t, { lookins: [first] });
+  // The first LOOKin goes away; another one gets its address.
+  first.online = false;
+  const other = new FakeLookin({ id: '98F3C3D4', host: '192.0.2.20' });
+  w.network.lookins.push(other);
+  await w.hub.pollAll();
+  const record = w.hub.lookins.get(LOOKIN_ID);
+  assert.equal(record.reachable, false);
+  assert.equal(record.host, null);
+  const ack = await set(w, UUIDS.TV, 'button-volup', 1);
+  assert.equal(ack.success, false);
+  assert.match(ack.error.fr, /ne répond pas/);
+  assert.deepEqual(other.sent, []);
+
+  // The rediscovery finds the other one as a new LOOKin.
+  w.network.lookins.splice(0, 1);
+  await w.hub.rediscover();
+  assert.ok(w.hub.lookins.has('98F3C3D4'));
+  assert.ok(
+    w.fake.discoveredDevices.some(
+      (d) => d.external_id === remoteId(w.gladys, UUIDS.TV, '98F3C3D4'),
+    ),
+  );
+});
+
+test('a command sent is a success even when Gladys refuses the new state', async (t) => {
+  const w = await createdWorld(t);
+  t.mock.method(w.gladys, 'publishChangedStates', async () => {
+    throw new GladysApiError(429, 'TOO_MANY_REQUESTS', 'Too many');
+  });
+  const ack = await w.fake.sceneAction('send_command', {
+    device: remoteId(w.gladys, UUIDS.TV),
+    command: 'power',
+  });
+  assert.equal(ack.success, true);
+  assert.deepEqual(w.network.lookins[0].sent, [{ uuid: UUIDS.TV, command: 'power' }]);
+});
+
+test('after a restart with the LOOKin away, its remotes are known and say "not answering"', async (t) => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'gladys-lookin-'));
+  const lookin = new FakeLookin();
+  const first = await world(t, { lookins: [lookin], dataDir });
+  await first.app.stop();
+  lookin.online = false;
+  const created = first.fake.discoveredDevices;
+  const second = await world(t, { lookins: [lookin], scan: 'none', dataDir, created });
+  const ack = await second.fake.sceneAction('send_command', {
+    device: remoteId(second.gladys, UUIDS.TV),
+    command: 'mute',
+  });
+  assert.equal(ack.success, false);
+  assert.match(ack.error.fr, /ne répond pas/);
+  const transports = second.fake.transports.filter(
+    (entry) => entry.device_external_id === remoteId(second.gladys, UUIDS.TV),
+  );
+  assert.equal(transports.at(-1)?.transport, 'unreachable');
+});
+
+test('a single power-on button: switching off is refused, not sent as an absent toggle', async (t) => {
+  const lookin = new FakeLookin();
+  lookin.remotes.get(UUIDS.LIGHT).Functions = [{ Name: 'poweron', Type: 'single' }];
+  const w = await createdWorld(t, { lookins: [lookin] });
+  await set(w, UUIDS.LIGHT, 'power', 1);
+  const ack = await set(w, UUIDS.LIGHT, 'power', 0);
+  assert.equal(ack.success, false);
+  assert.match(ack.error.en, /no such button/);
+  assert.deepEqual(lookin.sent, [{ uuid: UUIDS.LIGHT, command: 'poweron' }]);
+});
+
+test('air conditioner features offer only the speeds and swing LOOKin knows', async (t) => {
+  const w = await world(t);
+  const ac = w.fake.discoveredDevices.find(
+    (d) => d.external_id === remoteId(w.gladys, UUIDS.CLIMATE),
+  );
+  const option = (key) =>
+    ac.features.find((f) => f.external_id.endsWith(`:${key}`)).supported_options;
+  assert.deepEqual(option('fan-speed'), [0, 1, 3, 5]);
+  assert.deepEqual(option('swing'), [0, 1]);
+});

@@ -101,7 +101,9 @@ a message in red.
 - **A remote is missing**: save it in the LOOKin app first; it appears at the
   next refresh.
 - **The state is wrong**: the appliance was switched with a remote the LOOKin
-  did not hear. Send the state again from Gladys.
+  did not hear. With separate on and off buttons, send the state again from
+  Gladys; with a single power button, press the appliance's own button out of
+  the LOOKin's sight, so both agree again.
 
 ## Limits
 

@@ -178,9 +178,9 @@ export function decodeClimate(status, lastStatus) {
   const current = digits(status);
   const last = digits(lastStatus);
   const mode = current && current[0] <= CLIMATE_MODES.FAN ? current[0] : CLIMATE_MODES.OFF;
-  // "0000": off with no settings; the last ones are in LastStatus.
-  const settings =
-    mode === CLIMATE_MODES.OFF && last && status === '0000' ? last : (current ?? last);
+  // "0000" is off with no settings: the last ones, or none at all.
+  const blank = status === '0000';
+  const settings = blank ? last : (current ?? last);
   const lastMode = [current?.[0], last?.[0]].find(
     (value) => value > CLIMATE_MODES.OFF && value <= CLIMATE_MODES.FAN,
   );

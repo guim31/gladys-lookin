@@ -484,7 +484,7 @@
         "es": "Los botones de un mando LOOKin en el panel, con su estado y la temperatura de la estancia."
       },
       "icon": "radio",
-      "action_timeout_seconds": 15,
+      "action_timeout_seconds": 20,
       "settings": [
         {
           "key": "device",

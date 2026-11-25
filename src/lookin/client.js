@@ -117,7 +117,12 @@ export class LookinClient {
   }
 
   async remotes(host) {
-    return parseRemoteList(await this.get(host, '/data'));
+    const body = await this.get(host, '/data');
+    if (!Array.isArray(body)) {
+      // An empty list is "[]": anything else is a bad answer, not "no remote".
+      throw new LookinError(`${host} sent an unreadable list of remotes`);
+    }
+    return parseRemoteList(body);
   }
 
   async remote(host, uuid) {

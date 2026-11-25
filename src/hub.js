@@ -32,9 +32,12 @@ import {
   CLIMATE_MODES,
   DISCOVER_PAYLOAD,
   UDP_PORT,
+  COMMANDS,
+  REMOTE_TYPES,
   decodeClimate,
   encodeClimate,
   normalizeId,
+  normalizeUuid,
   normalizeIrCode,
   parseUdpMessage,
   powerOf,
@@ -75,10 +78,14 @@ const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 /** A LookinError of a command, as the multi-language failure Gladys shows in red. */
 function commandFailure(err) {
+  if (err instanceof ActionFailure) {
+    return err;
+  }
   if (err instanceof LookinError) {
     return new ActionFailure(err.unreachable ? FAILURE.unreachable : FAILURE.refused);
   }
-  return err;
+  logger.error('Command failed', err);
+  return new ActionFailure(FAILURE.failed);
 }
 
 export class LookinHub {
@@ -112,19 +119,27 @@ export class LookinHub {
 
   async start(config) {
     this.config = config;
-    await this.restore();
-    await this.discover();
-    await this.publishDevices();
-    await this.publishAllStates();
-    await this.publishTransports();
-    await this.publishConnectionStatus();
-    this.requestWidgetRefresh();
-    this.startTimers();
+    try {
+      await this.restore();
+      await this.discover();
+      await this.publishDevices();
+      await this.publishAllStates();
+      await this.publishTransports();
+      await this.publishConnectionStatus();
+      this.requestWidgetRefresh();
+    } finally {
+      // Gladys refusing one of the first publications must not stop the
+      // readings: the next ones (and resync) publish again.
+      this.startTimers();
+    }
   }
 
   /** Gladys came back (restart, network): it may have lost what was published. */
   async resync(config) {
     this.config = config;
+    if (this.timers.length === 0) {
+      this.startTimers();
+    }
     this.gladys.forgetPublishedStates();
     await this.publishDevices();
     await this.publishAllStates();
@@ -204,7 +219,7 @@ export class LookinHub {
     const data = await this.store.load();
     for (const [key, saved] of Object.entries(data.lookins ?? {})) {
       const id = normalizeId(key);
-      if (!id || typeof saved?.host !== 'string' || !IPV4.test(saved.host)) {
+      if (!id || (saved?.host !== null && !IPV4.test(String(saved?.host)))) {
         continue;
       }
       const record = this.createRecord({
@@ -214,6 +229,25 @@ export class LookinHub {
         model: Number.isFinite(saved.model) ? saved.model : null,
         hasMeteo: saved.hasMeteo === true,
       });
+      // The remotes as last read: commands and widgets know them (and say
+      // "not answering") while the LOOKin is away.
+      for (const remote of Array.isArray(saved.remotes) ? saved.remotes : []) {
+        const uuid = normalizeUuid(remote?.uuid);
+        if (uuid && Object.values(REMOTE_TYPES).includes(remote.type)) {
+          record.remotes.set(uuid, {
+            uuid,
+            type: remote.type,
+            name: typeof remote.name === 'string' ? remote.name : null,
+            updated: String(remote.updated ?? ''),
+            status: typeof remote.status === 'string' ? remote.status : null,
+            lastStatus: typeof remote.lastStatus === 'string' ? remote.lastStatus : null,
+            functions: (Array.isArray(remote.functions) ? remote.functions : []).filter((name) =>
+              COMMANDS.includes(name),
+            ),
+            commandSeq: 0,
+          });
+        }
+      }
       this.lookins.set(id, record);
     }
   }
@@ -226,6 +260,17 @@ export class LookinHub {
         name: record.name,
         model: record.model,
         hasMeteo: record.hasMeteo,
+        remotes: [...record.remotes.values()].map(
+          ({ uuid, type, name, updated, status, lastStatus, functions }) => ({
+            uuid,
+            type,
+            name,
+            updated,
+            status,
+            lastStatus,
+            functions,
+          }),
+        ),
       };
     }
     return this.store.save({ lookins });
@@ -268,7 +313,7 @@ export class LookinHub {
     };
     this.config.hosts.forEach(add);
     (await this.scan()).forEach(add);
-    [...this.lookins.values()].forEach((record) => add(record.host));
+    [...this.lookins.values()].forEach((record) => record.host && add(record.host));
 
     const answered = new Set();
     for (const host of hosts) {
@@ -283,8 +328,18 @@ export class LookinHub {
         continue;
       }
       answered.add(info.id);
-      const record = await this.adopt(host, info);
-      await this.refresh(record);
+      try {
+        // Another LOOKin known at this address has moved (or is gone).
+        for (const other of this.lookins.values()) {
+          if (other.id !== info.id && other.host === host) {
+            other.host = null;
+          }
+        }
+        const record = await this.adopt(host, info);
+        await this.refresh(record, { checked: true });
+      } catch (err) {
+        this.backgroundFailed(err);
+      }
     }
     for (const record of this.lookins.values()) {
       if (!answered.has(record.id) && record.reachable === null) {
@@ -549,7 +604,11 @@ export class LookinHub {
   }
 
   /** Read one LOOKin (sensor, remotes and their states) and publish what changed. */
-  async refresh(record) {
+  async refresh(record, { checked = false } = {}) {
+    if (!record.host) {
+      await this.failed(record);
+      return;
+    }
     let meteo = null;
     let list;
     const details = new Map();
@@ -558,6 +617,18 @@ export class LookinHub {
       [...record.remotes.values()].map((remote) => [remote.uuid, remote.commandSeq]),
     );
     try {
+      if (!checked) {
+        // DHCP may have given the address to another LOOKin: never read (nor
+        // drive) its remotes as ours.
+        const info = await this.client.info(record.host);
+        if (info.id !== record.id) {
+          logger.info(`LOOKin ${record.id}: ${record.host} is now LOOKin ${info.id}`);
+          record.host = null;
+          record.failures = this.timings.unreachableAfter;
+          await this.failed(record);
+          return;
+        }
+      }
       if (record.hasMeteo) {
         meteo = await this.client.meteo(record.host);
       }
@@ -618,6 +689,7 @@ export class LookinHub {
     if (structureChanged) {
       // A remote added, removed or edited in the LOOKin app.
       logger.debug(`LOOKin ${record.id}: new list of remotes`);
+      await this.save();
       await this.publishDevices();
     }
     await this.publishStates(record);
@@ -649,6 +721,13 @@ export class LookinHub {
     return found;
   }
 
+  /** A LOOKin whose address was taken by another one cannot be driven. */
+  requireHost(lookin) {
+    if (!lookin.host) {
+      throw new ActionFailure(FAILURE.unreachable);
+    }
+  }
+
   /** A Gladys command on a feature of one of the devices. */
   async setValue(device, feature, value) {
     const { lookin, remote } = this.require(device?.external_id);
@@ -659,24 +738,30 @@ export class LookinHub {
     if (!remote || !key) {
       throw new Error(`${feature?.external_id} cannot be set`);
     }
-    if (remote.type === 'climate') {
-      await this.setClimate(lookin, remote, key, value);
-    } else if (key === FEATURE_KEYS.POWER) {
-      await this.setPower(lookin, remote, Number(value) === 1);
-    } else if (
-      key.startsWith(BUTTON_PREFIX) &&
-      remote.functions.includes(key.slice(BUTTON_PREFIX.length))
-    ) {
-      if (Number(value) !== 0) {
-        await this.press(lookin, remote, key.slice(BUTTON_PREFIX.length));
+    logger.info(`LOOKin ${lookin.id}: ${key} = ${value} on ${remote.uuid}`);
+    try {
+      if (remote.type === 'climate') {
+        await this.setClimate(lookin, remote, key, value);
+      } else if (key === FEATURE_KEYS.POWER) {
+        await this.setPower(lookin, remote, Number(value) === 1);
+      } else if (
+        key.startsWith(BUTTON_PREFIX) &&
+        remote.functions.includes(key.slice(BUTTON_PREFIX.length))
+      ) {
+        if (Number(value) !== 0) {
+          await this.press(lookin, remote, key.slice(BUTTON_PREFIX.length));
+        }
+      } else {
+        throw new Error(`${feature.external_id} cannot be set`);
       }
-    } else {
-      throw new Error(`${feature.external_id} cannot be set`);
+    } catch (err) {
+      throw commandFailure(err);
     }
   }
 
   /** Press a button of a remote, keeping the on/off state the LOOKin would. */
   async press(lookin, remote, command) {
+    this.requireHost(lookin);
     remote.commandSeq += 1;
     await this.client.press(lookin.host, remote.uuid, command);
     logger.debug(`LOOKin ${lookin.id}: ${command} sent to ${remote.uuid}`);
@@ -691,8 +776,7 @@ export class LookinHub {
             : null;
     if (next !== null) {
       remote.status = `${next ? '1' : '0'}${(remote.status ?? '0000').slice(1)}`;
-      await this.publishStates(lookin);
-      this.requestWidgetRefresh();
+      await this.publishAfterCommand(lookin);
     }
   }
 
@@ -713,13 +797,16 @@ export class LookinHub {
     if (powerOf(remote.status) === on) {
       // Already in that state: a toggle would invert it.
       this.gladys.forgetPublishedStates(`${this.externalId(lookin, remote)}:${FEATURE_KEYS.POWER}`);
-      await this.publishStates(lookin);
+      await this.publishAfterCommand(lookin);
       return;
+    }
+    if (!remote.functions.includes('power')) {
+      throw new ActionFailure(FAILURE.noButton);
     }
     await this.press(lookin, remote, 'power');
     if (powerOf(remote.status) === null) {
       remote.status = `${on ? '1' : '0'}000`;
-      await this.publishStates(lookin);
+      await this.publishAfterCommand(lookin);
     }
   }
 
@@ -757,6 +844,7 @@ export class LookinHub {
       throw new Error(`Unknown air conditioner feature ${key}`);
     }
     const status = encodeClimate(next);
+    this.requireHost(lookin);
     remote.commandSeq += 1;
     await this.client.setClimate(lookin.host, remote.uuid, status);
     logger.debug(`LOOKin ${lookin.id}: air conditioner ${remote.uuid} set to ${status}`);
@@ -767,7 +855,19 @@ export class LookinHub {
     // The values the user did not touch are republished too (a rounded or
     // clamped temperature shows what was really sent).
     this.gladys.forgetPublishedStates(this.externalId(lookin, remote));
-    await this.publishStates(lookin);
+    await this.publishAfterCommand(lookin);
+  }
+
+  /**
+   * The infrared is sent: Gladys refusing the new state must not make the
+   * command look failed (a retry would press a toggle twice).
+   */
+  async publishAfterCommand(lookin) {
+    try {
+      await this.publishStates(lookin);
+    } catch (err) {
+      this.backgroundFailed(err);
+    }
     this.requestWidgetRefresh();
   }
 
@@ -805,6 +905,7 @@ export class LookinHub {
     if (!normalized) {
       throw new ActionFailure(FAILURE.badCode);
     }
+    this.requireHost(lookin);
     try {
       await this.client.sendIr(lookin.host, format, normalized);
     } catch (err) {
@@ -815,7 +916,11 @@ export class LookinHub {
 
   /** Widget button: run a command and say what was done. */
   async widgetCommand(deviceExternalId, command) {
+    if (!deviceExternalId) {
+      throw new ActionFailure(FAILURE.noDevice);
+    }
     const { lookin, remote } = this.require(deviceExternalId);
+    logger.info(`LOOKin ${lookin.id}: widget ${command}`);
     if (!remote) {
       throw new ActionFailure(FAILURE.notRemote);
     }

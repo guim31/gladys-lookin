@@ -111,7 +111,9 @@ s'arrête avec un message en rouge.
 - **Une télécommande manque** : enregistrez-la d'abord dans l'application
   LOOKin ; elle apparaît à l'actualisation suivante.
 - **L'état est faux** : l'appareil a été commandé avec une télécommande que la
-  LOOKin n'a pas entendue. Renvoyez l'état depuis Gladys.
+  LOOKin n'a pas entendue. Avec des boutons marche et arrêt séparés, renvoyez
+  l'état depuis Gladys ; avec un seul bouton d'alimentation, actionnez
+  l'appareil hors de portée de la LOOKin pour que les deux s'accordent.
 
 ## Limites
 
